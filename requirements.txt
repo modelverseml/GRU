@@ -1,0 +1,18 @@
+# Core numerics — the from-scratch GRU and all data prep
+numpy
+
+# Word embeddings: Word2Vec, FastText, and GloVe (via gensim.downloader)
+gensim
+
+# BERT contextual embeddings
+transformers
+
+# Framework comparison models (PyTorch + Keras; keras ships inside tensorflow)
+torch
+tensorflow
+
+# Running the notebook
+ipykernel
+
+
+#
