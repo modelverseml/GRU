@@ -1,0 +1,46 @@
+name: CI
+
+# Continuous integration that guards the Streamlit deploy. The actual deploy
+# (CD) is handled by Streamlit Community Cloud, which auto-redeploys on every
+# push to this branch once the app is connected (see README "Deploying").
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Byte-compile all Python sources
+        run: python -m compileall -q code streamlit_app.py
+
+      - name: Check requirements.txt is parseable
+        run: python -c "import pathlib; [print(l) for l in pathlib.Path('requirements.txt').read_text().splitlines() if l.strip() and not l.startswith('#')]"
+
+      - name: Verify committed artifacts the deploy needs are present
+        run: |
+          set -e
+          fail=0
+          # the deploy runs pytorch + manual across the 3 static encoders
+          # (tensorflow + bert are skipped on deploy, so they aren't required here).
+          for enc in word2vec fasttext glove; do
+            [ -f "data/text_encoder_small/$enc/vectors.kv" ] || { echo "MISSING encoder $enc"; fail=1; }
+            for m in "pytorch_$enc.pt" "manual_$enc.npz"; do
+              [ -e "data/model_artifacts/$m" ] || { echo "MISSING data/model_artifacts/$m"; fail=1; }
+            done
+          done
+          if [ "$fail" -ne 0 ]; then
+            echo "::error::Required deploy artifacts are missing — build them with code/model_building/run_pipeline.py and commit them."
+            exit 1
+          fi
+          echo "All required deploy artifacts are present."

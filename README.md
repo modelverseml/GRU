@@ -1,20 +1,19 @@
 # GRU from Scratch — Derivation & Implementation
 
 A **Gated Recurrent Unit (GRU) network built from scratch in NumPy** — no
-deep-learning framework for the model itself. This repository has two halves:
+deep-learning framework for the model itself. This repository has two parts:
 
 1. **The theory** — a complete, hand-derived account of how a GRU works: the two
    gates (update + reset), the candidate hidden state, the hidden-state
    interpolation, the softmax + cross-entropy gradient, and full
    **Backpropagation Through Time (BPTT)** through the gates, with every step shown
    explicitly and illustrated.
-2. **The code** — that derivation turned directly into a readable, stacked (multi-layer)
-   NumPy implementation, trained with BPTT and used to generate text word-by-word.
-   The same architecture is also rebuilt in **TensorFlow/Keras** and
-   **PyTorch**, and all three are compared side by side on the same data.
-
-The task throughout is **next-word prediction**: inputs are dense word-embedding
-vectors and the model predicts the next word at every step.
+2. **A full-stack sentiment app** — the same GRU applied to a real task: classifying
+   product-review sentiment (negative / neutral / positive). It is implemented **three
+   ways on identical data** — from scratch in NumPy (the derivation in Part 1, turned
+   into code), and in **PyTorch** and **TensorFlow** — across four text encoders
+   (word2vec, fastText, GloVe, BERT), then served through a **FastAPI** backend and a
+   **React** UI that shows every model's prediction + confidence side by side.
 
 > Educational project: the goal is to make the mechanics of a GRU explicit and
 > readable, not to be fast or state-of-the-art.
@@ -66,16 +65,8 @@ softmax gradient, the cross-entropy loss gradient, and the vector/matrix gradien
     - [3 — Through the two gates](#3--through-the-two-gates)
     - [4 — Carry to the previous step](#4--carry-to-the-previous-step)
   - [8. Summary of Gradient Equations](#8-summary-of-gradient-equations)
-- [Part 2 — The Code](#part-2--the-code)
-  - [Pipeline](#pipeline)
-  - [Project structure](#project-structure)
-    - [`gru_scratch.py` — the from-scratch model](#gru_scratchpy--the-from-scratch-model)
-    - [`gru_tensorflow.py` / `gru_pytorch.py` — framework versions](#gru_tensorflowpy--gru_pytorchpy--framework-versions)
-    - [`compare.py` — side-by-side comparison](#comparepy--side-by-side-comparison)
-    - [`utils.py` — data \& inference helpers](#utilspy--data--inference-helpers)
-  - [Setup](#setup)
-  - [Usage](#usage)
-  - [Reference](#reference)
+- [Part 2 — Sentiment Classification App (Full-Stack)](#part-2--sentiment-classification-app-full-stack)
+- [Reference](#reference)
 
 ---
 
@@ -355,203 +346,63 @@ In a stacked GRU the `dx` of a layer becomes the `dh_above` of the layer below.
 
 ---
 
-# Part 2 — The Code
+# Part 2 — Sentiment Classification App (Full-Stack)
 
-The implementation turns the derivation above directly into NumPy as a **stacked
-(multi-layer) GRU**, trained with full BPTT and used to predict and generate text
-word-by-word.
+Part 1 derives a GRU. Part 2 turns that derivation into a working app: the same
+GRU is implemented from scratch in NumPy (plus PyTorch and TensorFlow versions),
+trained to classify review sentiment, and served behind a small web UI.
 
-To put the from-scratch model in context, the same architecture is then built two more
-ways — with **TensorFlow/Keras** and with **PyTorch** — and all three are compared on the
-same data, architecture, and hyper-parameters. The notebook runs this 3-way comparison
-across four word-embedding encoders (Word2Vec, pre-trained GloVe, FastText, and a
-pre-trained BERT Transformer).
+## What it does
 
-## Pipeline
+Given a product review, it predicts the sentiment — **negative / neutral / positive** —
+and shows how the models compare on the same sentence: **four text encoders**
+(word2vec · fastText · GloVe · BERT) × **three implementations** of the same GRU:
 
-```
-word corpus → vocabulary → sliding-window sequences → train/test split
-            → train GRU (mini-batch BPTT) → evaluate (train/test accuracy) → predict / generate
-```
+| Implementation | File | Notes |
+|---|---|---|
+| **PyTorch** | `model_artifacts_generation.py` | `nn.GRU`, 2 layers + dropout, last-real-word readout |
+| **TensorFlow** | `model_artifacts_generation.py` | `keras.layers.GRU` → softmax |
+| **Manual (NumPy)** | `manual_gru.py` | from scratch: 2-gate cell + reset-gated candidate, BPTT, Adam — the Part 1 derivation, applied to classification |
 
-- **Next-word model** — inputs are dense word-embedding vectors (Word2Vec / GloVe /
-  FastText / BERT); the GRU predicts a probability distribution over the vocabulary and
-  generates text one word at a time.
-- **3-way comparison** — the manual NumPy GRU, a Keras model, and a PyTorch model are
-  trained on the same split and compared by train/test accuracy and sample generations.
+A **FastAPI** backend loads the trained models and a **React** frontend (or the
+Streamlit app) sends a review to it and displays each model's label, confidence, and
+class probabilities, plus a consensus vote.
 
 ## Project structure
 
 ```
 GRU/
-├── gru_scratch.py           # the from-scratch GRU: stacked layers, forward, loss, BPTT, training
-├── gru_tensorflow.py        # KerasGRU  — same architecture/interface, built with TensorFlow/Keras
-├── gru_pytorch.py           # PyTorchGRU — same architecture/interface, built with PyTorch
-├── compare.py               # compare_models — train/test accuracy + generation across models
-├── utils.py                 # data prep + split + evaluate + inference (predict_next, generate)
-├── gru_building_scratch.ipynb   # end-to-end walkthrough + 3-way comparison (4 word encoders)
-├── Images/                  # diagrams used in this README
-├── requirements.txt         # Python dependencies
-└── README.md
+├── code/
+│   ├── model_building/                 # produces the models
+│   │   ├── data_generation.py          # 1. download + split reviews -> data/raw/
+│   │   ├── encoder.py                  # 2. build+trim encoders, encode splits
+│   │   ├── model_artifacts_generation.py  # 3. train PyTorch + TF + manual GRUs
+│   │   ├── manual_gru.py               #    the from-scratch NumPy GRU (used by step 3)
+│   │   └── run_pipeline.py             #    runs steps 1-3 end to end
+│   └── backend/                        # serves the models (predictor.py + FastAPI app.py)
+├── frontend/                           # Vite + React UI
+├── streamlit_app.py                    # Streamlit deploy entry point
+└── data/                               # raw splits, trimmed encoders, embeddings, model artifacts
 ```
 
-### `gru_scratch.py` — the from-scratch model
-
-`GRU` stacks one or more recurrent layers (set with `hidden_layers`, e.g. `(100,)` for one
-layer or `(100, 64)` for two), carries a per-layer hidden state `a` across `T_x` time
-steps, and is trained with **mini-batch** gradient descent over the gradients accumulated
-by BPTT. Each method maps onto a section of the derivation above.
-
-| Method | Role | Derivation |
-| --- | --- | --- |
-| `initialize_parameters` | per-layer gate weights `Wz/Wr/Wh, bz/br/bh` plus the output layer `Wy, by` | §1 |
-| `layer_forward` | run one GRU layer (both gates + candidate) over the whole sequence | §2 |
-| `gru_forward` | stack the layers, then apply the output projection at every step | §2 |
-| `compute_loss` | cross-entropy (classification) or MSE (regression) | §4 |
-| `layer_backward` / `gru_backward` | BPTT for one layer / down through the stack, with gradient clipping | §5–§7 |
-| `update_parameters` | one gradient-descent step | — |
-| `train` | the full mini-batch loop: forward → loss → backward → clip → update | — |
-| `predict` | forward pass returning per-step probabilities `(m, T_x, n_y)` | §2 |
-
-It supports two tasks:
-
-- `task="classification"` — softmax output + cross-entropy loss (one-hot targets).
-- `task="regression"` — linear output + mean-squared-error loss (real-valued targets).
-
-In both cases the per-step output gradient reduces to `y_pred - Y`, exactly the
-`ŷ − y_true` derived in §5.
-
-> **A stabilizing trick in the code:** gradients are **clipped to a global norm of 5.0**
-> before each update (keeps BPTT through long sequences from exploding). Unlike an LSTM,
-> the GRU has no forget-gate bias to initialize — the update gate's additive carry plays
-> that role.
-
-> **Layout note.** The tensors use the standard **batch-first** layout `(m, T_x, n_x)`,
-> so examples are rows and each gate is `concat @ Wᵀ + b` with `concat = [a_prev, x]`
-> (weights to the *right* of the data). The Part 1 diagrams write the same step with column vectors;
-> the two are transposes of each other and produce identical results — and §7 derives the
-> backward pass directly in this batch-first form.
-
-### `gru_tensorflow.py` / `gru_pytorch.py` — framework versions
-
-`KerasGRU` and `PyTorchGRU` mirror the from-scratch model: they take the **same
-constructor inputs** (`X, Y, hidden_layers, learning_rate, epochs, batch_size, task`) and
-expose the same `train()` / `predict()` interface, so the helpers in `utils.py` and
-`compare.py` work on them unchanged. They are standalone — each trains natively (stacked
-`keras.layers.GRU` / `nn.GRU`, Adam optimizer) and `predict` runs its own framework
-forward, returning the same `(m, T_x, n_y)` layout. They do **not** share weights with the
-manual model.
-
-> Because the frameworks optimize with **Adam** and the from-scratch model with plain
-> **SGD + gradient clipping**, their learned weights and accuracies differ — this is a
-> realistic "library vs scratch" comparison, not a bit-for-bit match.
-
-### `compare.py` — side-by-side comparison
-
-`compare_models(models, X_train, Y_train, X_test, Y_test, ...)` takes a
-`{name: trained_model}` mapping and prints a **train/test accuracy** table (or MSE for
-regression) plus a sample generation for each model. Training is done by the caller, so you
-can compare all three models or just the manual one.
-
-### `utils.py` — data & inference helpers
-
-- `generate_dataset(words, T_x, word_vectors)` — slides a window of length `T_x` over the
-  word corpus and builds the `(m, T_x, n_x)` embedding-input and `(m, T_x, n_y)` one-hot
-  target tensors.
-- `train_test_split(...)` — splits the sequences into train/test partitions.
-- `evaluate(...)` — next-word accuracy (classification) or MSE (regression) on given data.
-- `predict_next(...)` — one word in, the single most likely next word out (argmax).
-- `generate(...)` — autoregressive generation, optionally sampling from the predicted
-  distribution for more varied output.
-
-`predict_next` / `generate` rely only on a model's `predict` method, so the same calls
-drive the manual GRU and both framework wrappers identically.
-
-**Tensor convention** used throughout:
-
-| Symbol | Meaning |
-| --- | --- |
-| `n_x` | input feature size (word-embedding vector size) |
-| `n_y` | output feature size (vocab size) |
-| `m`   | number of training sequences |
-| `T_x` | time steps per sequence |
-| `n_a` | hidden state size of a layer |
-
-## Setup
+## Build + run
 
 ```bash
-# (recommended) create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # Windows: .venv\Scripts\activate
+# 1. build the models (data -> encoder -> train). reuse existing data + encoders:
+cd code/model_building && python run_pipeline.py --skip data encoder
 
-# install dependencies
-pip install -r requirements.txt
+# 2. backend + frontend (two terminals)
+cd code/backend && uvicorn app:app --reload --port 8000
+cd frontend && npm install && npm run dev        # http://localhost:5173
 
-# register the environment as a Jupyter kernel (optional)
-python -m ipykernel install --user --name=gru-env --display-name="Python (gru-env)"
+# or the Streamlit app:
+streamlit run streamlit_app.py
 ```
 
-> The notebook downloads pre-trained embeddings/models (GloVe via `gensim.downloader`,
-> BERT via `transformers`) on first run, so the first execution needs an internet
-> connection and some disk space.
-
-## Usage
-
-Open the notebook for the full walkthrough:
-
-```bash
-jupyter notebook gru_building_scratch.ipynb
-```
-
-Or use the modules directly — next-word example (using gensim word vectors as the encoder):
-
-```python
-from gensim.models import Word2Vec
-from gru_scratch import GRU
-from utils import generate_dataset, train_test_split, evaluate, predict_next, generate
-
-# train (or load) word vectors to use as the input encoder
-sentences = [s.split() for s in corpus_lines]
-words = [w for s in sentences for w in s]
-w2v = Word2Vec(sentences, vector_size=100, window=5, min_count=1, sg=1).wv
-
-# build sliding-window embedding sequences, then split into train/test
-X, Y, vocab_to_index, index_to_vocab = generate_dataset(words, T_x=5, word_vectors=w2v)
-X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.2)
-
-# train a stacked GRU (hidden_layers sets the number and size of layers)
-model = GRU(X_train, Y_train, hidden_layers=(100, 64),
-            learning_rate=0.03, epochs=15, batch_size=32, task="classification")
-model.train()
-
-# evaluate + generate
-print("test accuracy:", evaluate(model, X_test, Y_test))
-print(predict_next(model, w2v, index_to_vocab, "Machine"))
-print(generate(model, w2v, index_to_vocab, seed_word="Machine", num_words=10, sample=True))
-```
-
-Compare all three implementations on the same data:
-
-```python
-from gru_scratch import GRU
-from gru_tensorflow import KerasGRU
-from gru_pytorch import PyTorchGRU
-from compare import compare_models
-
-cfg = dict(hidden_layers=(100,), learning_rate=0.03, epochs=15, batch_size=32, task="classification")
-models = {
-    "manual (numpy)": GRU(X_train, Y_train, **cfg),
-    "tensorflow":     KerasGRU(X_train, Y_train, **cfg),
-    "pytorch":        PyTorchGRU(X_train, Y_train, **cfg),
-}
-for m in models.values():
-    m.train()
-
-# train/test accuracy table + a sample generation from each model
-compare_models(models, X_train, Y_train, X_test, Y_test,
-               embedding=w2v, decoder=index_to_vocab,
-               seed_word="Machine", num_gen=10, sample=True)
-```
+Encoders are trimmed to the dataset vocabulary in memory and only the small copies are
+saved (a few MB each); BERT loads from HuggingFace at runtime. See
+[`code/README.md`](code/README.md) for details. The data pipeline and encoders are
+identical to the Vanilla-RNN / LSTM projects — only the model architecture differs.
 
 ---
 

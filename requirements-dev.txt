@@ -1,0 +1,12 @@
+# Full local environment: everything the deployed app needs, PLUS TensorFlow
+# (the third model), transformers (the BERT encoder), the notebooks, and dataset
+# tooling. Use this to run the complete pipeline + all 12 models locally:
+#   pip install -r requirements-dev.txt
+-r requirements.txt
+
+tensorflow
+keras
+transformers
+matplotlib
+ipykernel
+datasets

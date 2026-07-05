@@ -1,11 +1,11 @@
-# Byte-compiled / optimized Python
+# Byte-compiled / optimized files
 __pycache__/
 *.py[cod]
 *$py.class
-*.egg-info/
-.eggs/
-build/
-dist/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
 
 # Virtual environments
 .venv/
@@ -13,24 +13,38 @@ venv/
 env/
 ENV/
 
-# Jupyter
-.ipynb_checkpoints/
-
-# Downloaded embeddings / model artifacts (kept out of git — re-downloaded on demand)
+# Downloaded models / embeddings (large, fetched at runtime)
 *.bin
-*.model
 *.vec
 *.kv
-*.npy
-*.npz
-glove*.txt
+*.kv.vectors.npy
 gensim-data/
+*.safetensors
 
-# Editors / IDEs
-.vscode/
-.idea/
-*.swp
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
 
-# OS junk
+# OS / editor cruft
 .DS_Store
-Thumbs.db
+.idea/
+.vscode/
+
+# Node / frontend
+node_modules/
+frontend/dist/
+
+# --- large, regenerable data (rebuild via code/model_building/run_pipeline.py) ---
+# full GB encoders: we deleted these and serve the trimmed copies instead
+data/text_encoder/
+# intermediate training arrays (used only by model_building.py training)
+data/text_embedding/
+# gensim / huggingface download caches
+data/**/_bert_cache/
+
+# Keep the small committed pieces. The *.kv rules above would otherwise drop the
+# trimmed encoders, so re-include the whole text_encoder_small/ folder.
+!data/text_encoder_small/
+!data/text_encoder_small/**
+# (data/model_artifacts/ and data/raw/ aren't matched by any ignore -> tracked)

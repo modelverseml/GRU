@@ -1,18 +1,18 @@
-# Core numerics — the from-scratch GRU and all data prep
-numpy
+# Dependencies for the DEPLOYED Streamlit app (Streamlit Community Cloud reads
+# this file). It runs the lightweight set that fits the free tier: PyTorch + the
+# from-scratch NumPy RNN across the static encoders.
+#
+# Intentionally NOT here:
+#   - tensorflow / keras : heaviest dep, and no wheels on Streamlit's Python
+#   - transformers       : only needed for BERT, which the deploy skips
+# Both live in requirements-dev.txt for the full local pipeline.
 
-# Word embeddings: Word2Vec, FastText, and GloVe (via gensim.downloader)
+streamlit
+numpy
+pandas
+scipy
 gensim
 
-# BERT contextual embeddings
-transformers
-
-# Framework comparison models (PyTorch + Keras; keras ships inside tensorflow)
+# CPU-only PyTorch keeps the build small (no multi-GB CUDA wheels)
+--extra-index-url https://download.pytorch.org/whl/cpu
 torch
-tensorflow
-
-# Running the notebook
-ipykernel
-
-
-#

@@ -1,0 +1,11 @@
+[theme]
+primaryColor = "#6d28d9"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f6f4ff"
+textColor = "#1f2330"
+font = "sans serif"
+
+[server]
+# the encoders + models are bundled in the repo / fetched from HuggingFace,
+# nothing to upload at runtime
+maxUploadSize = 5
